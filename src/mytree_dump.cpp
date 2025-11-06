@@ -78,22 +78,27 @@ static const char * _get_active_dir() {
     return LOG_DIR_INITED ? LOG_DIR : ".";
 }
 
-static int _write_node(NODE_T *subtree, FILE *fp, int *id_counter) {
+static int _write_node(NODE_T *subtree, FILE *fp, int *id_counter, NODE_T *highlight) {
     if (subtree == nullptr) return -1;
 
     int my_id = (*id_counter)++;
 
-    fprintf(fp, "\tnode%d [label=\"{ <addr> addr=%p | <data> data=\\\"%d\\\" | { <left> left=%p | <right> right=%p } }\", shape=record, style=filled, fillcolor=\"#ffe5b7ff\"];\n",
-            my_id, (void*)subtree, atoi(subtree->data), (void*)subtree->left, (void*)subtree->right);
+    if (subtree != highlight) {
+        fprintf(fp, "\tnode%d [label=\"{ <addr> addr=%p | <data> data=\\\"%d\\\" | { <left> left=%p | <right> right=%p } }\", shape=record, style=filled, fillcolor=\"#ffe5b7ff\"];\n",
+                my_id, (void*)subtree, atoi(subtree->data), (void*)subtree->left, (void*)subtree->right);
+    } else {
+        fprintf(fp, "\tnode%d [label=\"{ <addr> addr=%p | <data> data=\\\"%d\\\" | { <left> left=%p | <right> right=%p } }\", shape=record, style=filled, fillcolor=\"#ceffb7ff\"];\n",
+                my_id, (void*)subtree, atoi(subtree->data), (void*)subtree->left, (void*)subtree->right);
+    }
 
     if (subtree->left != nullptr) {
-        int left_id = _write_node(subtree->left, fp, id_counter);
+        int left_id = _write_node(subtree->left, fp, id_counter, highlight);
         if (left_id >= 0)
             fprintf(fp, "\tnode%d -> node%d [color=\"#0c0ccc\", label=\"L\", constraint=true];\n", my_id, left_id);
     }
 
     if (subtree->right != nullptr) {
-        int right_id = _write_node(subtree->right, fp, id_counter);
+        int right_id = _write_node(subtree->right, fp, id_counter, highlight);
         if (right_id >= 0)
             fprintf(fp, "\tnode%d -> node%d [color=\"#3dad3d\", label=\"R\", constraint=true];\n", my_id, right_id);
     }
@@ -101,7 +106,7 @@ static int _write_node(NODE_T *subtree, FILE *fp, int *id_counter) {
     return my_id;
 }
 
-static void _generate_dot_dump(MYTREE_T *tree, FILE *fp) {
+static void _generate_dot_dump(MYTREE_T *tree, FILE *fp, NODE_T *highlight) {
     if (fp == nullptr) return;
     fprintf(fp,
         "digraph BinaryTree {\n"
@@ -117,12 +122,12 @@ static void _generate_dot_dump(MYTREE_T *tree, FILE *fp) {
     }
 
     int id_counter = 0;
-    _write_node(tree->root, fp, &id_counter);
+    _write_node(tree->root, fp, &id_counter, highlight);
 
     fprintf(fp, "}\n");
 }
 
-function int _generate_files(MYTREE_T *tree, const char *dir, char *out_basename, size_t out_size) {
+function int _generate_files(MYTREE_T *tree, const char *dir, char *out_basename, size_t out_size, NODE_T *highlight) {
     verifier(tree) verified(return -1;);
 
     const char *outdir = (dir && dir[0] != '\0') ? dir : ".";
@@ -139,7 +144,7 @@ function int _generate_files(MYTREE_T *tree, const char *dir, char *out_basename
     FILE *fp = fopen(dot_path, "w");
     if (fp == nullptr) return -1;
 
-    _generate_dot_dump(tree, fp);
+    _generate_dot_dump(tree, fp, highlight);
     fclose(fp);
 
     char image_basename[256] = "";
@@ -165,10 +170,10 @@ function int _generate_files(MYTREE_T *tree, const char *dir, char *out_basename
     return 0;
 }
 
-void dump(MYTREE_T *tree, const char *reason) {
+void dump(MYTREE_T *tree, const char *reason, NODE_T *highlight) {
     const char *dir = _get_active_dir();
     char basename[256] = "";
-    int rc = _generate_files(tree, dir, basename, sizeof(basename));
+    int rc = _generate_files(tree, dir, basename, sizeof(basename), highlight);
     /* Запись в уже открытый лог-файл */
     if (LOG_FILE == nullptr) return;
 
@@ -185,8 +190,12 @@ void dump(MYTREE_T *tree, const char *reason) {
     fflush(LOG_FILE);
 }
 
+void dump(MYTREE_T *tree, const char *reason) {
+    dump(tree, reason, nullptr);
+}
+
 void dump(MYTREE_T *tree) {
-    dump(tree, nullptr);
+    dump(tree, nullptr, nullptr);
 }
 
 }

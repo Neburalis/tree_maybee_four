@@ -7,7 +7,7 @@ namespace mytree {
 
 const int32_t signature = (int32_t) 0xF050C0C1;
 
-typedef char * CONTAIRING_T;
+typedef const char * CONTAIRING_T;
 
 struct NODE_T {
     int32_t         signature;
@@ -54,6 +54,8 @@ void destruct_logger();
 // Делает дамп дерева и добавляет визуальный фрейм в log.html внутри инициализированной папки.
 // Параметр reason может быть NULL.
 void dump(MYTREE_T *tree, const char *reason);
+
+void dump(MYTREE_T *tree, const char *reason, NODE_T *highlight);
 
 // Удобная перегрузка без сообщения
 void dump(MYTREE_T *tree);

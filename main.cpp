@@ -7,11 +7,12 @@
 
 using namespace mytree;
 
-#define DO(code)                        \
-    dump(tree, "Dump before <font color=\"blue\">" #code "</font>");   \
-    code;                               \
-    dump(tree, "Dump after <font color=\"blue\">" #code "</font>");    \
-    fprintf(get_log_file(), "<hr>");
+#define DO(code) do {                                                           \
+        dump(tree, "Dump before <font color=\"blue\">" #code "</font>");        \
+        NODE_T *node = code;                                                    \
+        dump(tree, "Dump after <font color=\"blue\">" #code "</font>", node);   \
+        fprintf(get_log_file(), "<hr>");                                        \
+    } while (0)
 
 int main() {
     // init_logger
