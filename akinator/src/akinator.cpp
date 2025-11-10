@@ -77,20 +77,20 @@ bool genie_health_condition(MYTREE_T *tree) {
     return genie_health_condition(tree->root);
 }
 
-void print(MYTREE_T *tree) {
+void save_to_file(MYTREE_T *tree, FILE *file) {
     genie_health_condition(tree) verified(return;);
 
-    return print(tree->root);
+    return save_to_file(tree->root, file);
 }
 
-void print(NODE_T *subtree) {
+void save_to_file(NODE_T *subtree, FILE *file) {
     genie_health_condition(subtree) verified(return;);
 
-    printf("(");
-    if (subtree->left != nullptr) print(subtree->left);
-    printf("%d", atoi(subtree->data));
-    if (subtree->right != nullptr) print(subtree->right);
-    printf(")");
+    fprintf(file, "(");
+    fprintf(file, "%s", subtree->data);
+    if (subtree->left != nullptr) save_to_file(subtree->left, file);
+    if (subtree->right != nullptr) save_to_file(subtree->right, file);
+    fprintf(file, ")");
 }
 
 void guess(MYTREE_T *tree) {

@@ -42,8 +42,8 @@ void destroy_genie_face(NODE_T   *subtree);
 bool genie_health_condition(MYTREE_T *tree);
 bool genie_health_condition(NODE_T   *subtree);
 
-void print(MYTREE_T *tree);
-void print(NODE_T   *subtree);
+void save_to_file(MYTREE_T *tree, FILE *file);
+void save_to_file(NODE_T   *subtree, FILE *file);
 
 // Инициализирует папку для логов (должна вызываться один раз в main)
 int init_logger(const char *log_dirname);
