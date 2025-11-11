@@ -14,8 +14,8 @@ struct NODE_T {
 
     CONTAIRING_T    data;
 
-    NODE_T         *left, *right/*,
-                   *parent*/;
+    NODE_T         *left, *right,
+                   *parent;
 };
 
 struct MYTREE_T {
@@ -42,6 +42,10 @@ void destroy_genie_face(NODE_T   *subtree);
 bool genie_health_condition(MYTREE_T *tree);
 bool genie_health_condition(NODE_T   *subtree);
 
+// Поиск узла по data
+NODE_T *search(MYTREE_T *tree,    CONTAIRING_T data);
+NODE_T *search(NODE_T   *subtree, CONTAIRING_T data);
+
 void save_to_file(MYTREE_T *tree, FILE *file);
 void save_to_file(NODE_T   *subtree, FILE *file);
 
@@ -62,6 +66,8 @@ void dump(MYTREE_T *tree, const char *reason, NODE_T *highlight);
 void guess(MYTREE_T *tree);
 
 void add_new_field(MYTREE_T *tree, NODE_T *cursor);
+
+void definition(MYTREE_T *tree, CONTAIRING_T data);
 }
 
 #endif // MYTREE_H

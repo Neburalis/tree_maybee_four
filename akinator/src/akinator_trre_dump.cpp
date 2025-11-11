@@ -84,11 +84,11 @@ static int _write_node(NODE_T *subtree, FILE *fp, int *id_counter, NODE_T *highl
     int my_id = (*id_counter)++;
 
     if (subtree != highlight) {
-        fprintf(fp, "\tnode%d [label=\"{ <addr> addr=%p | <data> data=\\\"%s\\\" | { <left> left=%p | <right> right=%p } }\", shape=record, style=filled, fillcolor=\"#ffe5b7ff\"];\n",
-                my_id, (void*)subtree, (subtree->data), (void*)subtree->left, (void*)subtree->right);
+        fprintf(fp, "\tnode%d [label=\"{ <addr> addr=%p | <data> data=\\\"%s\\\" | { <left> left=%p | <right> right=%p } | <parent> parent=%p }\", shape=record, style=filled, fillcolor=\"#ffe5b7ff\"];\n",
+                my_id, (void*)subtree, (subtree->data), (void*)subtree->left, (void*)subtree->right, (void *)subtree->parent);
     } else {
-        fprintf(fp, "\tnode%d [label=\"{ <addr> addr=%p | <data> data=\\\"%s\\\" | { <left> left=%p | <right> right=%p } }\", shape=record, style=filled, fillcolor=\"#ceffb7ff\"];\n",
-                my_id, (void*)subtree, (subtree->data), (void*)subtree->left, (void*)subtree->right);
+        fprintf(fp, "\tnode%d [label=\"{ <addr> addr=%p | <data> data=\\\"%s\\\" | { <left> left=%p | <right> right=%p } | <parent> parent=%p }\", shape=record, style=filled, fillcolor=\"#ceffb7ff\"];\n",
+                my_id, (void*)subtree, (subtree->data), (void*)subtree->left, (void*)subtree->right, (void *)subtree->parent);
     }
 
     if (subtree->left != nullptr) {
