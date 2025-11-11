@@ -123,19 +123,13 @@ void guess(MYTREE_T *tree) {
     NODE_T *cur = tree->root;
 
     while(cur->left != nullptr) { // Пока не терминальный элемент - задаем вопросы
-        printf("Ваш персонаж %s? (Y/n) ", cur->data);
-        int choice = getchar();
-        if (choice != '\n') clear_stdin_buffer();
-        if (choice == 'Y' || choice == 'y' || choice == '\n') {
+        if (is_user_want_continue("Ваш персонаж %s? (Y/n) ", cur->data)) {
             cur = cur->left;
         } else {
             cur = cur->right;
         }
     } // Дошли до терминального элемента => отгадали (или нет в базе)
-    printf("Вы загадали \"%s\"? (Y/n) ", cur->data);
-    int choice = getchar();
-    if (choice != '\n') clear_stdin_buffer();
-    if (choice == 'Y' || choice == 'y' || choice == '\n') {
+    if (is_user_want_continue("Вы загадали \"%s\"? (Y/n) ", cur->data)) {
         printf("Я снова угадал! ");
     } else {
         add_new_field(tree, cur);
@@ -153,12 +147,9 @@ void add_new_field(MYTREE_T *tree, NODE_T *cursor) {
     scanf("%[^\n]", &new_question);
     clear_stdin_buffer();
 
-    // printf("Ща добавлю новый вопрос [%s?], если да, то ответ -> (%s), иначе -> (%s)", new_question, user_guess, cursor->data);
-
-    dump(tree, "dump before adding");
+    dump(tree, "dump before adding", cursor);
 
     NODE_T *ans_yes = alloc_new_node(), *ans_no = alloc_new_node();
-
     tree->size += 2;
 
     ans_yes->data = strdup(user_guess);

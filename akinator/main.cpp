@@ -24,29 +24,35 @@ int main() {
 
     MYTREE_T *akinator_knowledge_base = rub_lamp();
 
-//     akinator_knowledge_base->root->data = strdup("животное");
-//
-//     NODE_T *new_node = alloc_new_node();
-//     new_node->data = strdup("Полторашка");
-//     akinator_knowledge_base->root->left = new_node;
-//     ++(akinator_knowledge_base->size);
-//
-//     new_node = alloc_new_node();
-//     new_node->data = strdup("препает матан");
-//     akinator_knowledge_base->root->right = new_node;
-//     ++(akinator_knowledge_base->size);
-//
-//     new_node = alloc_new_node();
-//     new_node->data = strdup("Петрович");
-//     akinator_knowledge_base->root->right->left = new_node;
-//     ++(akinator_knowledge_base->size);
-//
-//     new_node = alloc_new_node();
-//     new_node->data = strdup("Паша Т");
-//     akinator_knowledge_base->root->right->right= new_node;
-//     ++(akinator_knowledge_base->size);
-//
-//     dump(akinator_knowledge_base, "Dump after generate predefined tree");
+    free(akinator_knowledge_base->root->data);
+    akinator_knowledge_base->root->data = strdup("животное");
+
+    NODE_T *new_node = alloc_new_node();
+    new_node->data = strdup("Полторашка");
+    new_node->parent = akinator_knowledge_base->root;
+    akinator_knowledge_base->root->left = new_node;
+    ++(akinator_knowledge_base->size);
+
+    new_node = alloc_new_node();
+    new_node->data = strdup("препает матан");
+    new_node->parent = akinator_knowledge_base->root;
+    akinator_knowledge_base->root->right = new_node;
+    ++(akinator_knowledge_base->size);
+
+    new_node = alloc_new_node();
+    new_node->data = strdup("Петрович");
+    new_node->parent = akinator_knowledge_base->root->right;
+    akinator_knowledge_base->root->right->left = new_node;
+    ++(akinator_knowledge_base->size);
+
+    new_node = alloc_new_node();
+    new_node->data = strdup("Паша Т");
+    new_node->parent = akinator_knowledge_base->root->right;
+    akinator_knowledge_base->root->right->right= new_node;
+    ++(akinator_knowledge_base->size);
+
+    dump(akinator_knowledge_base, "Dump after generate predefined tree");
+    fprintf(get_log_file(), "<hr>");
 
     do {
         guess(akinator_knowledge_base);
