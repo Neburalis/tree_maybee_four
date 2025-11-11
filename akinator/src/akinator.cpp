@@ -101,19 +101,21 @@ NODE_T *search(NODE_T *subtree, CONTAIRING_T data) {
     else                                    return nullptr;
 }
 
-void save_to_file(MYTREE_T *tree, FILE *file) {
+void save_to_file(FILE *file, MYTREE_T *tree) {
     genie_health_condition(tree) verified(return;);
 
-    return save_to_file(tree->root, file);
+    return save_to_file(file, tree->root);
 }
 
-void save_to_file(NODE_T *subtree, FILE *file) {
+void save_to_file(FILE *file, NODE_T *subtree) {
     genie_health_condition(subtree) verified(return;);
 
     fprintf(file, "(");
-    fprintf(file, "%s", subtree->data);
-    if (subtree->left != nullptr) save_to_file(subtree->left, file);
-    if (subtree->right != nullptr) save_to_file(subtree->right, file);
+    fprintf(file, "\"%s\"", subtree->data);
+    if (subtree->left  != nullptr) save_to_file(file, subtree->left );
+    else fprintf(file, " nil");
+    if (subtree->right != nullptr) save_to_file(file, subtree->right);
+    else fprintf(file, " nil");
     fprintf(file, ")");
 }
 

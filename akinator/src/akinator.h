@@ -46,8 +46,8 @@ bool genie_health_condition(NODE_T   *subtree);
 NODE_T *search(MYTREE_T *tree,    CONTAIRING_T data);
 NODE_T *search(NODE_T   *subtree, CONTAIRING_T data);
 
-void save_to_file(MYTREE_T *tree, FILE *file);
-void save_to_file(NODE_T   *subtree, FILE *file);
+void save_to_file(FILE *file, MYTREE_T *tree);
+void save_to_file(FILE *file, NODE_T   *subtree);
 
 // Инициализирует папку для логов (должна вызываться один раз в main)
 int init_logger(const char *log_dirname);
