@@ -30,6 +30,8 @@ enum ERRNO {
 
 NODE_T *alloc_new_node(/*NODE_T *parent*/);
 
+bool is_leaf(const NODE_T *node);
+
 MYTREE_T *rub_lamp();
 // NODE_T *alloc_new_node(/*NODE_T *parent*/);
 

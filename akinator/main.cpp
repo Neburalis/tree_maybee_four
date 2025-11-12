@@ -58,6 +58,23 @@ int main() {
         guess(akinator_knowledge_base);
     } while(is_user_want_continue("\nНачать заново? (Y/n) ") == 1);
 
+    while (is_user_want_continue("\nХотите получить определение персонажа? (Y/n) ") == 1) {
+        printf("Кого определить? ");
+
+        char target[256] = {};
+        if (scanf("%255[^\n]", target) != 1) {
+            clear_stdin_buffer();
+            continue;
+        }
+        clear_stdin_buffer();
+
+        definition(akinator_knowledge_base, target);
+    }
+
+    if (is_user_want_continue("\nСохранить базу данных? (Y/n) ") == 1) {
+        save_to_file(stdout, akinator_knowledge_base);
+    }
+
     destroy_genie_face(akinator_knowledge_base);
     destruct_logger();
 }

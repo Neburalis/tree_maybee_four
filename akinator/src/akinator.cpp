@@ -11,6 +11,67 @@
 
 namespace akinator {
 
+typedef struct PATH_STEP_T {
+    const char *question;
+    bool        is_positive; // true => идти в левое поддерево, false => вправо
+} PATH_STEP_T;
+
+bool is_leaf(const NODE_T *node) {
+    return node != nullptr && node->left == nullptr && node->right == nullptr;
+}
+
+enum PATH_RESULT {
+    PATH_NOT_FOUND,
+    PATH_FOUND_LEAF
+};
+
+// Рекурсивно ищет путь к целевому листу, заполняя шаги определения.
+static PATH_RESULT collect_definition_path(NODE_T *subtree, CONTAIRING_T target,
+                                           PATH_STEP_T *path, size_t depth,
+                                           size_t capacity, size_t *out_length) {
+    if (subtree == nullptr) {
+        return PATH_NOT_FOUND;
+    }
+
+    if (is_leaf(subtree)) {
+        if (strcmp(subtree->data, target) == 0) {
+            *out_length = depth;
+            return PATH_FOUND_LEAF;
+        }
+        return PATH_NOT_FOUND;
+    }
+
+    if (depth >= capacity) {
+        return PATH_NOT_FOUND;
+    }
+
+    if (subtree->left != nullptr) {
+        path[depth].question    = subtree->data;
+        path[depth].is_positive = true;
+
+    PATH_RESULT left_result = collect_definition_path(subtree->left, target,
+                              path, depth + 1,
+                              capacity, out_length);
+        if (left_result == PATH_FOUND_LEAF) {
+            return left_result;
+        }
+    }
+
+    if (subtree->right != nullptr) {
+        path[depth].question    = subtree->data;
+        path[depth].is_positive = false;
+
+    PATH_RESULT right_result = collect_definition_path(subtree->right, target,
+                               path, depth + 1,
+                               capacity, out_length);
+        if (right_result == PATH_FOUND_LEAF) {
+            return right_result;
+        }
+    }
+
+    return PATH_NOT_FOUND;
+}
+
 /*function*/ NODE_T *alloc_new_node() {
     NODE_T *new_node = typed_calloc(1, NODE_T);
     if (new_node == nullptr) {
@@ -141,12 +202,12 @@ void guess(MYTREE_T *tree) {
 void add_new_field(MYTREE_T *tree, NODE_T *cursor) {
     printf("Что вы загадали? ");
     char user_guess[256] = {};
-    scanf("%[^\n]", &user_guess);
+    scanf("%255[^\n]", &user_guess);
     clear_stdin_buffer();
 
     printf("Чем %s отличается от %s?\n Он ", user_guess, cursor->data);
     char new_question[256] = {};
-    scanf("%[^\n]", &new_question);
+    scanf("%255[^\n]", &new_question);
     clear_stdin_buffer();
 
     dump(tree, "dump before adding", cursor);
@@ -166,6 +227,54 @@ void add_new_field(MYTREE_T *tree, NODE_T *cursor) {
 
     dump(tree, "dump after adding new question", cursor);
     fprintf(get_log_file(), "<hr>");
+}
+
+void definition(MYTREE_T *tree, CONTAIRING_T target) {
+    genie_health_condition(tree) verified(ERROR_MSG("DB in invalid state"); return;);
+
+    if (tree == nullptr || tree->root == nullptr || target == nullptr) {
+        ERROR_MSG("Invalid arguments passed to definition()\n");
+        return;
+    }
+
+    size_t capacity = tree->size > 0 ? tree->size : 1;
+    PATH_STEP_T *path = typed_calloc(capacity, PATH_STEP_T);
+    if (path == nullptr) {
+        ERROR_MSG("Can't allocate memory for definition path\n");
+        return;
+    }
+
+    size_t path_length = 0;
+
+    PATH_RESULT result = collect_definition_path(tree->root, target, path, 0,
+                                                 capacity, &path_length);
+    if (result == PATH_NOT_FOUND) {
+        printf("Персонаж \"%s\" не найден в базе.\n", target);
+        FREE(path);
+        return;
+    }
+
+    if (path_length == 0) {
+        printf("%s пока не имеет характеристик.\n", target);
+        FREE(path);
+        return;
+    }
+
+    printf("%s ", target);
+    for (size_t index = 0; index < path_length; ++index) {
+        if (index > 0) {
+            printf((index == path_length - 1) ? " и " : ", ");
+        }
+
+        if (!path[index].is_positive) {
+            printf("не ");
+        }
+
+        printf("%s", path[index].question);
+    }
+    printf("\n");
+
+    FREE(path);
 }
 
 }
