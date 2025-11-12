@@ -70,6 +70,8 @@ void guess(MYTREE_T *tree);
 void add_new_field(MYTREE_T *tree, NODE_T *cursor);
 
 void definition(MYTREE_T *tree, CONTAIRING_T data);
+
+void diff(MYTREE_T *tree, CONTAIRING_T target1, CONTAIRING_T target2);
 }
 
 #endif // MYTREE_H

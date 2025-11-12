@@ -71,6 +71,27 @@ int main() {
         definition(akinator_knowledge_base, target);
     }
 
+    while (is_user_want_continue("\nХотите сравнить двух персонажей? (Y/n) ") == 1) {
+        char first[256]  = {};
+        char second[256] = {};
+
+        printf("Первый персонаж: ");
+        if (scanf("%255[^\n]", first) != 1) {
+            clear_stdin_buffer();
+            continue;
+        }
+        clear_stdin_buffer();
+
+        printf("Второй персонаж: ");
+        if (scanf("%255[^\n]", second) != 1) {
+            clear_stdin_buffer();
+            continue;
+        }
+        clear_stdin_buffer();
+
+        diff(akinator_knowledge_base, first, second);
+    }
+
     if (is_user_want_continue("\nСохранить базу данных? (Y/n) ") == 1) {
         save_to_file(stdout, akinator_knowledge_base);
     }

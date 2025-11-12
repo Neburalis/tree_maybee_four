@@ -12,8 +12,7 @@
 namespace akinator {
 
 typedef struct PATH_STEP_T {
-    const char *question;
-    bool        is_positive; // true => идти в левое поддерево, false => вправо
+    bool is_positive; // true => идти в левое поддерево, false => вправо
 } PATH_STEP_T;
 
 bool is_leaf(const NODE_T *node) {
@@ -26,9 +25,12 @@ enum PATH_RESULT {
 };
 
 // Рекурсивно ищет путь к целевому листу, заполняя шаги определения.
-static PATH_RESULT collect_definition_path(NODE_T *subtree, CONTAIRING_T target,
+function PATH_RESULT collect_definition_path(NODE_T *subtree, CONTAIRING_T target,
                                            PATH_STEP_T *path, size_t depth,
                                            size_t capacity, size_t *out_length) {
+    verify(path != nullptr,        return PATH_NOT_FOUND;);
+    verify(out_length != nullptr,  return PATH_NOT_FOUND;);
+
     if (subtree == nullptr) {
         return PATH_NOT_FOUND;
     }
@@ -46,30 +48,69 @@ static PATH_RESULT collect_definition_path(NODE_T *subtree, CONTAIRING_T target,
     }
 
     if (subtree->left != nullptr) {
-        path[depth].question    = subtree->data;
         path[depth].is_positive = true;
 
-    PATH_RESULT left_result = collect_definition_path(subtree->left, target,
-                              path, depth + 1,
-                              capacity, out_length);
+        PATH_RESULT left_result = collect_definition_path(subtree->left, target,
+                                                          path, depth + 1,
+                                                          capacity, out_length);
         if (left_result == PATH_FOUND_LEAF) {
             return left_result;
         }
     }
 
     if (subtree->right != nullptr) {
-        path[depth].question    = subtree->data;
         path[depth].is_positive = false;
 
-    PATH_RESULT right_result = collect_definition_path(subtree->right, target,
-                               path, depth + 1,
-                               capacity, out_length);
+        PATH_RESULT right_result = collect_definition_path(subtree->right, target,
+                                                           path, depth + 1,
+                                                           capacity, out_length);
         if (right_result == PATH_FOUND_LEAF) {
             return right_result;
         }
     }
 
     return PATH_NOT_FOUND;
+}
+
+function const NODE_T *descend_by_steps(const NODE_T *node, const PATH_STEP_T *path,
+                                      size_t steps) {
+    verify(path != nullptr, return nullptr;);
+
+    for (size_t index = 0; index < steps && node != nullptr; ++index) {
+        node = path[index].is_positive ? node->left : node->right;
+    }
+    return node;
+}
+
+function void print_feature_sequence(const NODE_T *root, const PATH_STEP_T *path,
+                                   size_t start, size_t length) {
+    verify(genie_health_condition(root), ERROR_MSG("DB in invalid state"); return;);
+    verify(path   != nullptr,            ERROR_MSG("path is nullptr");     return;);
+    verify(length != 0,                  ERROR_MSG("length is zero");      return;);
+
+    const NODE_T *question_node = descend_by_steps(root, path, start);
+
+    for (size_t offset = 0; offset < length; ++offset) {
+        if (offset > 0) {
+            printf((offset == length - 1) ? " и " : ", ");
+        }
+
+        if (!path[start + offset].is_positive) {
+            printf("не ");
+        }
+
+        if (question_node != nullptr) {
+            printf("%s", question_node->data);
+        } else {
+            printf("(неизвестно)");
+        }
+
+        if (offset + 1 < length && question_node != nullptr) {
+            question_node = path[start + offset].is_positive
+                                ? question_node->left
+                                : question_node->right;
+        }
+    }
 }
 
 /*function*/ NODE_T *alloc_new_node() {
@@ -128,7 +169,7 @@ void destroy_genie_face(NODE_T *subtree) {
     FREE(subtree);
 }
 
-bool genie_health_condition(NODE_T *subtree) {
+bool genie_health_condition(const NODE_T *subtree) {
     if (subtree == nullptr) return true;
     if (subtree->signature != signature) return false;
     if (subtree->left != nullptr && subtree->left->parent != subtree) {
@@ -141,7 +182,7 @@ bool genie_health_condition(NODE_T *subtree) {
     return genie_health_condition(subtree->left) && genie_health_condition(subtree->right);
 }
 
-bool genie_health_condition(MYTREE_T *tree) {
+bool genie_health_condition(const MYTREE_T *tree) {
     if (tree == nullptr) return false;
     return genie_health_condition(tree->root);
 }
@@ -192,7 +233,7 @@ void guess(MYTREE_T *tree) {
             cur = cur->right;
         }
     } // Дошли до терминального элемента => отгадали (или нет в базе)
-    if (is_user_want_continue("Вы загадали \"%s\"? (Y/n) ", cur->data)) {
+    if (is_user_want_continue("Вы загадали %s? (Y/n) ", cur->data)) {
         printf("Я снова угадал! ");
     } else {
         add_new_field(tree, cur);
@@ -200,14 +241,17 @@ void guess(MYTREE_T *tree) {
 }
 
 void add_new_field(MYTREE_T *tree, NODE_T *cursor) {
+    genie_health_condition(tree) verified(ERROR_MSG("DB in invalid state");return;);
+    verify(cursor != nullptr, ERROR_MSG("cursor is nullptr"); return;);
+
     printf("Что вы загадали? ");
     char user_guess[256] = {};
-    scanf("%255[^\n]", &user_guess);
+    scanf("%255[^\n]", user_guess);
     clear_stdin_buffer();
 
     printf("Чем %s отличается от %s?\n Он ", user_guess, cursor->data);
     char new_question[256] = {};
-    scanf("%255[^\n]", &new_question);
+    scanf("%255[^\n]", new_question);
     clear_stdin_buffer();
 
     dump(tree, "dump before adding", cursor);
@@ -215,8 +259,35 @@ void add_new_field(MYTREE_T *tree, NODE_T *cursor) {
     NODE_T *ans_yes = alloc_new_node(), *ans_no = alloc_new_node();
     tree->size += 2;
 
-    ans_yes->data = strdup(user_guess);
-    ans_no ->data = cursor->data;
+    bool has_negation = false;
+    char *neg_pos = strstr(new_question, "не");
+    if (neg_pos != nullptr) {
+        has_negation = true;
+        size_t removal_len = strlen("не");
+        memmove(neg_pos, neg_pos + removal_len, strlen(neg_pos + removal_len) + 1);
+        size_t len = strlen(new_question);
+        while (len > 0 && (new_question[len - 1] == ' ' || new_question[len - 1] == '\t')) {
+            new_question[len - 1] = '\0';
+            --len;
+        }
+        char *start = new_question;
+        while (*start == ' ' || *start == '\t') {
+            ++start;
+        }
+        if (start != new_question) {
+            memmove(new_question, start, strlen(start) + 1);
+        }
+    }
+
+    verify(cursor->data != nullptr, ERROR_MSG("cursor->data is nullptr"); return;);
+
+    if (has_negation) {
+        ans_yes->data = cursor->data;
+        ans_no ->data = strdup(user_guess);
+    } else {
+        ans_yes->data = strdup(user_guess);
+        ans_no ->data = cursor->data;
+    }
 
     cursor->data  = strdup(new_question);
     cursor->left  = ans_yes;
@@ -249,7 +320,7 @@ void definition(MYTREE_T *tree, CONTAIRING_T target) {
     PATH_RESULT result = collect_definition_path(tree->root, target, path, 0,
                                                  capacity, &path_length);
     if (result == PATH_NOT_FOUND) {
-        printf("Персонаж \"%s\" не найден в базе.\n", target);
+        printf("Персонаж %s не найден в базе.\n", target);
         FREE(path);
         return;
     }
@@ -261,20 +332,91 @@ void definition(MYTREE_T *tree, CONTAIRING_T target) {
     }
 
     printf("%s ", target);
-    for (size_t index = 0; index < path_length; ++index) {
-        if (index > 0) {
-            printf((index == path_length - 1) ? " и " : ", ");
-        }
-
-        if (!path[index].is_positive) {
-            printf("не ");
-        }
-
-        printf("%s", path[index].question);
-    }
+    print_feature_sequence(tree->root, path, 0, path_length);
     printf("\n");
 
     FREE(path);
+}
+
+void diff(MYTREE_T *tree, CONTAIRING_T target1, CONTAIRING_T target2) {
+    genie_health_condition(tree) verified(ERROR_MSG("DB in invalid state"); return;);
+
+    if (tree == nullptr || tree->root == nullptr || target1 == nullptr || target2 == nullptr) {
+        ERROR_MSG("Invalid arguments passed to diff()\n");
+        return;
+    }
+
+    size_t capacity = tree->size > 0 ? tree->size : 1;
+    PATH_STEP_T *path1 = typed_calloc(capacity, PATH_STEP_T);
+    PATH_STEP_T *path2 = typed_calloc(capacity, PATH_STEP_T);
+    if (path1 == nullptr || path2 == nullptr) {
+        ERROR_MSG("Can't allocate memory for diff paths\n");
+        FREE(path1);
+        FREE(path2);
+        return;
+    }
+
+    size_t len1 = 0, len2 = 0;
+    PATH_RESULT res1 = collect_definition_path(tree->root, target1, path1, 0,
+                                               capacity, &len1);
+    PATH_RESULT res2 = collect_definition_path(tree->root, target2, path2, 0,
+                                               capacity, &len2);
+
+    if (res1 == PATH_NOT_FOUND) {
+        printf("Персонаж %s не найден в базе.\n", target1);
+        FREE(path1);
+        FREE(path2);
+        return;
+    }
+
+    if (res2 == PATH_NOT_FOUND) {
+        printf("Персонаж %s не найден в базе.\n", target2);
+        FREE(path1);
+        FREE(path2);
+        return;
+    }
+
+    size_t common = 0;
+    size_t min_len = (len1 < len2) ? len1 : len2;
+    while (common < min_len &&
+        path1[common].is_positive == path2[common].is_positive) {
+        ++common;
+    }
+
+    if (common == len1 && common == len2) {
+        printf("%s и %s — это один и тот же персонаж.\n", target1, target2);
+        FREE(path1);
+        FREE(path2);
+        return;
+    }
+
+    printf("%s и %s ", target1, target2);
+
+    if (common > 0) {
+        printf("оба ");
+        print_feature_sequence(tree->root, path1, 0, common);
+        printf(", но ");
+    } else {
+        printf("не имеют общих характеристик; ");
+    }
+
+    printf("%s ", target1);
+    if (len1 > common) {
+        print_feature_sequence(tree->root, path1, common, len1 - common);
+    } else {
+        printf("по этим характеристикам совпадает");
+    }
+
+    printf(", а %s ", target2);
+    if (len2 > common) {
+        print_feature_sequence(tree->root, path2, common, len2 - common);
+    } else {
+        printf("по этим характеристикам совпадает");
+    }
+    printf(".\n");
+
+    FREE(path1);
+    FREE(path2);
 }
 
 }

@@ -16,7 +16,7 @@
     || ({code; false;})
 
 #define verify(cond, code) \
-    if (!(cond)) (code);
+    if (!(cond)) {code};
 
 #define die() \
     *(int *) 0;
