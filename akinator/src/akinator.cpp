@@ -4,16 +4,238 @@
 #include <string.h>
 #include <wchar.h>
 #include <time.h>
+#include <ctype.h>
 
 #include "akinator.h"
 #include "base.h"
 #include "io_utils.h"
+#include "stringNthong.h"
 
 namespace akinator {
 
-typedef struct PATH_STEP_T {
-    bool is_positive; // true => идти в левое поддерево, false => вправо
-} PATH_STEP_T;
+function void skip_spaces(char *buffer, size_t *pos) {
+    VERIFY(buffer != nullptr, ERROR_MSG("buffer is nullptr"); return;);
+    VERIFY(pos != nullptr,    ERROR_MSG("pos is nullptr");    return;);
+
+    char *cursor = buffer + (*pos);
+    mystr::move_ptr_to_first_not_space_symbol(&cursor, 0);
+    *pos = (size_t) (cursor - buffer);
+}
+
+function char *parse_quoted_value(char *buffer, size_t *pos, bool *error) {
+    VERIFY(buffer != nullptr, return nullptr;);
+    VERIFY(pos != nullptr,    return nullptr;);
+    VERIFY(error != nullptr,  return nullptr;);
+
+    skip_spaces(buffer, pos);
+
+    char *cursor = buffer + (*pos);
+//     int consumed = 0;
+//     if (cursor[0] != '"' || sscanf(cursor, "\"%*[^\"]\"%n", &consumed) != 0 || consumed <= 0) {
+//         *error = true;
+//         ERROR_MSG("Failed to parse quoted value at position %zu\n", *pos);
+//         return nullptr;
+//     }
+//     size_t payload_len = (size_t) (consumed >= 2 ? consumed - 2 : 0);
+//
+//     printf("%s", cursor);
+//     MEOW();
+//     printf("%d\n", consumed);
+//
+//     (*pos) += (size_t) consumed;
+
+    cursor = strchr(cursor, '"') + 1;
+    int len = strchr(cursor, '"') - cursor;
+
+    char *title = TYPED_CALLOC(len+1, char);
+    strncpy(title, cursor, len);
+    title[len] = '\0';
+
+    (*pos) += len + 2;
+
+    // return result;
+    return title;
+}
+
+function void debug_parse_print(char *buffer, size_t buffer_len, size_t pos, const char * reason) {
+    printf("file loading dump %s\n", reason);
+    // for (int i = 0; i < buffer_len; ++i) {
+    //     if (i < pos) {
+    //         printf(BRIGHT_BLACK("%c"), *(buffer + i));
+    //     }
+    //     else if (i == pos) {
+    //         printf(GREEN("[%c]"), *(buffer + i));
+    //     }
+    //     else {
+    //         printf("%c", *(buffer + i));
+    //     }
+    // }
+    printf(BRIGHT_BLACK("%.*s"), pos, buffer);
+    printf(GREEN("%c"), *(buffer + pos));
+    if (pos + 1 < buffer_len) {
+        printf("%s", buffer + pos + 1);
+    }
+    putchar('\n');
+}
+
+NODE_T *parse_node(char *buffer, size_t buffer_len, size_t *pos,
+                            size_t *node_count, bool *error) {
+    VERIFY(buffer != nullptr,    return nullptr;);
+    VERIFY(pos != nullptr,       return nullptr;);
+    VERIFY(node_count != nullptr,return nullptr;);
+    VERIFY(error != nullptr,     return nullptr;);
+
+    if (*error) {
+        return nullptr;
+    }
+
+    debug_parse_print(buffer, buffer_len, *pos, "at new requrent start");
+    skip_spaces(buffer, pos);
+    debug_parse_print(buffer, buffer_len, *pos, "after skip spaces");
+
+    if (buffer[*pos] == '\0') {
+        *error = true;
+        ERROR_MSG("Unexpected end of buffer while parsing node\n");
+        return nullptr;
+    }
+
+    if (strncmp(buffer + *pos, "nil", 3) == 0) {
+        (*pos) += 3;
+        debug_parse_print(buffer, buffer_len, *pos, "after nil parsed");
+        return nullptr;
+    }
+
+    // MEOW();
+    // printf("[%s]\n", buffer);
+    // printf("%zu\n", *pos);
+
+    if (buffer[*pos] != '(') {
+        *error = true;
+        ERROR_MSG("Expected '(' at position %zu\n", *pos);
+        return nullptr;
+    }
+
+    ++(*pos); // skip '('
+    debug_parse_print(buffer, buffer_len, *pos, "after ( skiped");
+
+    NODE_T *node = alloc_new_node();
+    if (node == nullptr) {
+        *error = true;
+        ERROR_MSG("Can't allocate node while parsing\n");
+        return nullptr;
+    }
+
+    node->data = parse_quoted_value(buffer, pos, error);
+    debug_parse_print(buffer, buffer_len, *pos, "after name parsed");
+    if (*error || node->data == nullptr) {
+        destroy_genie_face(node);
+        return nullptr;
+    }
+
+    skip_spaces(buffer, pos);
+    debug_parse_print(buffer, buffer_len, *pos, "after spaces skiped");
+
+    node->left = parse_node(buffer, buffer_len, pos, node_count, error);
+    debug_parse_print(buffer, buffer_len, *pos, "after left parsed");
+    if (*error) {
+        destroy_genie_face(node);
+        return nullptr;
+    }
+    if (node->left != nullptr) {
+        node->left->parent = node;
+    }
+
+    skip_spaces(buffer, pos);
+    debug_parse_print(buffer, buffer_len, *pos, "after spaces skiped");
+
+    node->right = parse_node(buffer, buffer_len, pos, node_count, error);
+    debug_parse_print(buffer, buffer_len, *pos, "after right parsed");
+    if (*error) {
+        destroy_genie_face(node);
+        return nullptr;
+    }
+    if (node->right != nullptr) {
+        node->right->parent = node;
+    }
+
+    skip_spaces(buffer, pos);
+    debug_parse_print(buffer, buffer_len, *pos, "after spaces skiped");
+
+    if (buffer[*pos] != ')') {
+        *error = true;
+        ERROR_MSG("Expected ')' at position %zu\n", *pos);
+        destroy_genie_face(node);
+        return nullptr;
+    }
+
+    ++(*pos); // skip ')'
+    debug_parse_print(buffer, buffer_len, *pos, "after ) skiped");
+
+    ++(*node_count);
+
+    return node;
+}
+
+MYTREE_T *load_tree_from_file(const char *filename) {
+    VERIFY(filename != nullptr, ERROR_MSG("filename is nullptr"); return nullptr;);
+
+    size_t buffer_len = 0;
+    char *buffer = read_file_to_buf(filename, &buffer_len);
+    if (buffer == nullptr) {
+        ERROR_MSG("Can't read knowledge base file '%s'\n", filename);
+        return nullptr;
+    }
+
+    size_t pos = 0;
+    size_t node_count = 0;
+    bool error = false;
+
+    NODE_T *root = parse_node(buffer, buffer_len, &pos, &node_count, &error);
+    skip_spaces(buffer, &pos);
+
+    if (error || root == nullptr) {
+        ERROR_MSG("Failed to parse knowledge base from '%s'\n", filename);
+        if (root != nullptr) {
+            destroy_genie_face(root);
+        }
+        FREE(buffer);
+        return nullptr;
+    }
+
+    skip_spaces(buffer, &pos);
+
+    if (buffer[pos] != '\0') {
+        ERROR_MSG("Unexpected data at the end of '%s'\n", filename);
+        destroy_genie_face(root);
+        FREE(buffer);
+        return nullptr;
+    }
+
+    MYTREE_T *tree = TYPED_CALLOC(1, MYTREE_T);
+    if (tree == nullptr) {
+        ERROR_MSG("Can't allocate tree structure for '%s'\n", filename);
+        destroy_genie_face(root);
+        FREE(buffer);
+        return nullptr;
+    }
+
+    tree->root = root;
+    tree->size = node_count;
+
+    if (!genie_health_condition(tree)) {
+        ERROR_MSG("Parsed tree from '%s' is in invalid state\n", filename);
+        destroy_genie_face(tree);
+        FREE(buffer);
+        return nullptr;
+    }
+
+    FREE(buffer);
+
+    return tree;
+}
+
+// true => идти в левое поддерево, false => вправо
+typedef bool PATH_STEP_T;
 
 bool is_leaf(const NODE_T *node) {
     return node != nullptr && node->left == nullptr && node->right == nullptr;
@@ -28,8 +250,8 @@ enum PATH_RESULT {
 function PATH_RESULT collect_definition_path(NODE_T *subtree, CONTAIRING_T target,
                                            PATH_STEP_T *path, size_t depth,
                                            size_t capacity, size_t *out_length) {
-    verify(path != nullptr,        return PATH_NOT_FOUND;);
-    verify(out_length != nullptr,  return PATH_NOT_FOUND;);
+    VERIFY(path != nullptr,        return PATH_NOT_FOUND;);
+    VERIFY(out_length != nullptr,  return PATH_NOT_FOUND;);
 
     if (subtree == nullptr) {
         return PATH_NOT_FOUND;
@@ -48,7 +270,7 @@ function PATH_RESULT collect_definition_path(NODE_T *subtree, CONTAIRING_T targe
     }
 
     if (subtree->left != nullptr) {
-        path[depth].is_positive = true;
+        path[depth] = true;
 
         PATH_RESULT left_result = collect_definition_path(subtree->left, target,
                                                           path, depth + 1,
@@ -59,7 +281,7 @@ function PATH_RESULT collect_definition_path(NODE_T *subtree, CONTAIRING_T targe
     }
 
     if (subtree->right != nullptr) {
-        path[depth].is_positive = false;
+        path[depth] = false;
 
         PATH_RESULT right_result = collect_definition_path(subtree->right, target,
                                                            path, depth + 1,
@@ -74,28 +296,28 @@ function PATH_RESULT collect_definition_path(NODE_T *subtree, CONTAIRING_T targe
 
 function const NODE_T *descend_by_steps(const NODE_T *node, const PATH_STEP_T *path,
                                       size_t steps) {
-    verify(path != nullptr, return nullptr;);
+    VERIFY(path != nullptr, return nullptr;);
 
     for (size_t index = 0; index < steps && node != nullptr; ++index) {
-        node = path[index].is_positive ? node->left : node->right;
+        node = path[index] ? node->left : node->right;
     }
     return node;
 }
 
 function void print_feature_sequence(const NODE_T *root, const PATH_STEP_T *path,
                                    size_t start, size_t length) {
-    verify(genie_health_condition(root), ERROR_MSG("DB in invalid state"); return;);
-    verify(path   != nullptr,            ERROR_MSG("path is nullptr");     return;);
-    verify(length != 0,                  ERROR_MSG("length is zero");      return;);
+    VERIFY(genie_health_condition(root), ERROR_MSG("DB in invalid state"); return;);
+    VERIFY(path   != nullptr,            ERROR_MSG("path is nullptr");     return;);
+    VERIFY(length != 0,                  ERROR_MSG("length is zero");      return;);
 
     const NODE_T *question_node = descend_by_steps(root, path, start);
-
+    // todo maybe make question node == null an error?
     for (size_t offset = 0; offset < length; ++offset) {
         if (offset > 0) {
             printf((offset == length - 1) ? " и " : ", ");
         }
 
-        if (!path[start + offset].is_positive) {
+        if (!path[start + offset]) {
             printf("не ");
         }
 
@@ -106,7 +328,7 @@ function void print_feature_sequence(const NODE_T *root, const PATH_STEP_T *path
         }
 
         if (offset + 1 < length && question_node != nullptr) {
-            question_node = path[start + offset].is_positive
+            question_node = path[start + offset]
                                 ? question_node->left
                                 : question_node->right;
         }
@@ -114,7 +336,7 @@ function void print_feature_sequence(const NODE_T *root, const PATH_STEP_T *path
 }
 
 /*function*/ NODE_T *alloc_new_node() {
-    NODE_T *new_node = typed_calloc(1, NODE_T);
+    NODE_T *new_node = TYPED_CALLOC(1, NODE_T);
     if (new_node == nullptr) {
         return nullptr;
     }
@@ -127,7 +349,7 @@ function void print_feature_sequence(const NODE_T *root, const PATH_STEP_T *path
 }
 
 MYTREE_T *rub_lamp() {
-    MYTREE_T *new_tree = typed_calloc(1, MYTREE_T);
+    MYTREE_T *new_tree = TYPED_CALLOC(1, MYTREE_T);
     if (new_tree == nullptr) {
         return nullptr;
     }
@@ -188,13 +410,13 @@ bool genie_health_condition(const MYTREE_T *tree) {
 }
 
 NODE_T *search(MYTREE_T *tree, CONTAIRING_T data) {
-    genie_health_condition(tree) verified(return nullptr;);
+    genie_health_condition(tree) VERIFIED(return nullptr;);
 
     return search(tree->root, data);
 }
 
 NODE_T *search(NODE_T *subtree, CONTAIRING_T data) {
-    genie_health_condition(subtree) verified(return nullptr;);
+    genie_health_condition(subtree) VERIFIED(return nullptr;);
 
     if (subtree->data == data)              return subtree;
     if (strcmp(subtree->data, data) == 0)   return subtree;
@@ -204,13 +426,13 @@ NODE_T *search(NODE_T *subtree, CONTAIRING_T data) {
 }
 
 void save_to_file(FILE *file, MYTREE_T *tree) {
-    genie_health_condition(tree) verified(return;);
+    genie_health_condition(tree) VERIFIED(return;);
 
     return save_to_file(file, tree->root);
 }
 
 void save_to_file(FILE *file, NODE_T *subtree) {
-    genie_health_condition(subtree) verified(return;);
+    genie_health_condition(subtree) VERIFIED(return;);
 
     fprintf(file, "(");
     fprintf(file, "\"%s\"", subtree->data);
@@ -222,11 +444,11 @@ void save_to_file(FILE *file, NODE_T *subtree) {
 }
 
 void guess(MYTREE_T *tree) {
-    genie_health_condition(tree) verified(ERROR_MSG("DB in invalid state");return;);
+    genie_health_condition(tree) VERIFIED(ERROR_MSG("DB in invalid state");return;);
 
     NODE_T *cur = tree->root;
 
-    while(cur->left != nullptr) { // Пока не терминальный элемент - задаем вопросы
+    while(!is_leaf(cur)) { // Пока не терминальный элемент - задаем вопросы
         if (is_user_want_continue("Ваш персонаж %s? (Y/n) ", cur->data)) {
             cur = cur->left;
         } else {
@@ -234,15 +456,15 @@ void guess(MYTREE_T *tree) {
         }
     } // Дошли до терминального элемента => отгадали (или нет в базе)
     if (is_user_want_continue("Вы загадали %s? (Y/n) ", cur->data)) {
-        printf("Я снова угадал! ");
+        printf("Я снова угадал!\n");
     } else {
-        add_new_field(tree, cur);
+        add_new_object(tree, cur);
     }
 }
 
-void add_new_field(MYTREE_T *tree, NODE_T *cursor) {
-    genie_health_condition(tree) verified(ERROR_MSG("DB in invalid state");return;);
-    verify(cursor != nullptr, ERROR_MSG("cursor is nullptr"); return;);
+void add_new_object(MYTREE_T *tree, NODE_T *cursor) {
+    genie_health_condition(tree) VERIFIED(ERROR_MSG("DB in invalid state");return;);
+    VERIFY(cursor != nullptr, ERROR_MSG("cursor is nullptr"); return;);
 
     printf("Что вы загадали? ");
     char user_guess[256] = {};
@@ -256,7 +478,9 @@ void add_new_field(MYTREE_T *tree, NODE_T *cursor) {
 
     dump(tree, "dump before adding", cursor);
 
-    NODE_T *ans_yes = alloc_new_node(), *ans_no = alloc_new_node();
+    NODE_T *ans_yes = alloc_new_node();
+    NODE_T *ans_no  = alloc_new_node();
+
     tree->size += 2;
 
     bool has_negation = false;
@@ -279,7 +503,13 @@ void add_new_field(MYTREE_T *tree, NODE_T *cursor) {
         }
     }
 
-    verify(cursor->data != nullptr, ERROR_MSG("cursor->data is nullptr"); return;);
+    VERIFY(cursor->data != nullptr, {
+        ERROR_MSG("cursor->data is nullptr");
+        FREE(ans_yes);
+        FREE(ans_no);
+        tree->size -= 2;
+        return;
+    });
 
     if (has_negation) {
         ans_yes->data = cursor->data;
@@ -301,22 +531,21 @@ void add_new_field(MYTREE_T *tree, NODE_T *cursor) {
 }
 
 void definition(MYTREE_T *tree, CONTAIRING_T target) {
-    genie_health_condition(tree) verified(ERROR_MSG("DB in invalid state"); return;);
+    genie_health_condition(tree) VERIFIED(ERROR_MSG("DB in invalid state"); return;);
 
-    if (tree == nullptr || tree->root == nullptr || target == nullptr) {
+    if (tree->root == nullptr || target == nullptr) {
         ERROR_MSG("Invalid arguments passed to definition()\n");
         return;
     }
 
     size_t capacity = tree->size > 0 ? tree->size : 1;
-    PATH_STEP_T *path = typed_calloc(capacity, PATH_STEP_T);
+    PATH_STEP_T *path = TYPED_CALLOC(capacity, PATH_STEP_T);
     if (path == nullptr) {
         ERROR_MSG("Can't allocate memory for definition path\n");
         return;
     }
 
     size_t path_length = 0;
-
     PATH_RESULT result = collect_definition_path(tree->root, target, path, 0,
                                                  capacity, &path_length);
     if (result == PATH_NOT_FOUND) {
@@ -339,7 +568,7 @@ void definition(MYTREE_T *tree, CONTAIRING_T target) {
 }
 
 void diff(MYTREE_T *tree, CONTAIRING_T target1, CONTAIRING_T target2) {
-    genie_health_condition(tree) verified(ERROR_MSG("DB in invalid state"); return;);
+    genie_health_condition(tree) VERIFIED(ERROR_MSG("DB in invalid state"); return;);
 
     if (tree == nullptr || tree->root == nullptr || target1 == nullptr || target2 == nullptr) {
         ERROR_MSG("Invalid arguments passed to diff()\n");
@@ -347,8 +576,8 @@ void diff(MYTREE_T *tree, CONTAIRING_T target1, CONTAIRING_T target2) {
     }
 
     size_t capacity = tree->size > 0 ? tree->size : 1;
-    PATH_STEP_T *path1 = typed_calloc(capacity, PATH_STEP_T);
-    PATH_STEP_T *path2 = typed_calloc(capacity, PATH_STEP_T);
+    PATH_STEP_T *path1 = TYPED_CALLOC(capacity, PATH_STEP_T);
+    PATH_STEP_T *path2 = TYPED_CALLOC(capacity, PATH_STEP_T);
     if (path1 == nullptr || path2 == nullptr) {
         ERROR_MSG("Can't allocate memory for diff paths\n");
         FREE(path1);
@@ -362,7 +591,7 @@ void diff(MYTREE_T *tree, CONTAIRING_T target1, CONTAIRING_T target2) {
     PATH_RESULT res2 = collect_definition_path(tree->root, target2, path2, 0,
                                                capacity, &len2);
 
-    if (res1 == PATH_NOT_FOUND) {
+    if (res1 == PATH_NOT_FOUND) { // TODO put before res2 = ...
         printf("Персонаж %s не найден в базе.\n", target1);
         FREE(path1);
         FREE(path2);
@@ -379,7 +608,7 @@ void diff(MYTREE_T *tree, CONTAIRING_T target1, CONTAIRING_T target2) {
     size_t common = 0;
     size_t min_len = (len1 < len2) ? len1 : len2;
     while (common < min_len &&
-        path1[common].is_positive == path2[common].is_positive) {
+        path1[common] == path2[common]) {
         ++common;
     }
 

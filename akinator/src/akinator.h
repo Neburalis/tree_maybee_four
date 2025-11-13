@@ -12,10 +12,11 @@ typedef char * CONTAIRING_T;
 struct NODE_T {
     int32_t         signature;
 
+    bool            is_data_need_free;
     CONTAIRING_T    data;
 
-    NODE_T         *left, *right,
-                   *parent;
+    NODE_T          *left, *right,
+                    *parent;
 };
 
 struct MYTREE_T {
@@ -33,6 +34,9 @@ NODE_T *alloc_new_node(/*NODE_T *parent*/);
 bool is_leaf(const NODE_T *node);
 
 MYTREE_T *rub_lamp();
+
+MYTREE_T *load_tree_from_file(const char *filename);
+
 // NODE_T *alloc_new_node(/*NODE_T *parent*/);
 
 // Рекурсивно удаляет все дерево
@@ -41,8 +45,8 @@ void destroy_genie_face(MYTREE_T *tree);
 void destroy_genie_face(NODE_T   *subtree);
 
 // Возвращает true есть дерево в валидном состоянии, иначе - false
-bool genie_health_condition(MYTREE_T *tree);
-bool genie_health_condition(NODE_T   *subtree);
+bool genie_health_condition(const MYTREE_T *tree);
+bool genie_health_condition(const NODE_T   *subtree);
 
 // Поиск узла по data
 NODE_T *search(MYTREE_T *tree,    CONTAIRING_T data);
@@ -67,7 +71,7 @@ void dump(MYTREE_T *tree, const char *reason, NODE_T *highlight);
 
 void guess(MYTREE_T *tree);
 
-void add_new_field(MYTREE_T *tree, NODE_T *cursor);
+void add_new_object(MYTREE_T *tree, NODE_T *cursor);
 
 void definition(MYTREE_T *tree, CONTAIRING_T data);
 

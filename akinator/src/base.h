@@ -9,23 +9,26 @@
 #define local    static
 #define function static
 
-#define typed_calloc(NMEMB, TYPE) \
+#define TYPED_CALLOC(NMEMB, TYPE) \
     (TYPE *) calloc((NMEMB), sizeof(TYPE));
 
-#define verified(code) \
+#define VERIFIED(code) \
     || ({code; false;})
+//
+// #define VERIFIED(code, retval) \
+//     || ({code; return (retval); false;})
 
-#define verify(cond, code) \
+#define VERIFY(cond, code) \
     if (!(cond)) {code};
 
-#define die() \
+#define DIE() \
     *(int *) 0;
 
-#define posasserted() \
-    verified(ERROR_MSG("possaserted killed program, the action was completed unsuccessfully"); die();)
+#define POSASERTED() \
+    VERIFIED(ERROR_MSG("possaserted killed program, the action was completed unsuccessfully"); DIE();)
 
-#define posasert(cond) \
-    verify(cond, ERROR_MSG("possasert killed program, the cond (" #cond ") was false"); die();)
+#define POSASSERT(cond) \
+    VERIFY(cond, ERROR_MSG("possasert killed program, the cond (" #cond ") was false"); DIE();)
 
 #define FREE(ptr)   \
     free((ptr));      \

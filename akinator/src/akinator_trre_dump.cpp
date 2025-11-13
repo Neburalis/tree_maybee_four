@@ -128,7 +128,7 @@ static void _generate_dot_dump(MYTREE_T *tree, FILE *fp, NODE_T *highlight) {
 }
 
 function int _generate_files(MYTREE_T *tree, const char *dir, char *out_basename, size_t out_size, NODE_T *highlight) {
-    genie_health_condition(tree) verified(return -1;);
+    genie_health_condition(tree) VERIFIED(return -1;);
 
     const char *outdir = (dir && dir[0] != '\0') ? dir : ".";
 

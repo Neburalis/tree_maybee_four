@@ -8,7 +8,11 @@
 using namespace akinator;
 
 int main() {
+    TERMINAL_ENTER_ALT_SCREEN();
+    TERMINAL_CLEAR_SCREEN();
     // init logger
+
+    // Откуда вызвался && дата/время
     create_folder_if_not_exists("logs");
     time_t t0 = time(NULL);
     struct tm tminfo = *localtime(&t0);
@@ -22,37 +26,24 @@ int main() {
         init_logger(log_dir);
     }
 
-    MYTREE_T *akinator_knowledge_base = rub_lamp();
+    const char *db_path = "bd";
 
-    free(akinator_knowledge_base->root->data);
-    akinator_knowledge_base->root->data = strdup("животное");
+    MYTREE_T *akinator_knowledge_base = load_tree_from_file(db_path);
+    if (akinator_knowledge_base == nullptr) {
+        ERROR_MSG("Не смог загрузит бд из файла, создаю пустую");
+        akinator_knowledge_base = rub_lamp();
+    }
 
-    NODE_T *new_node = alloc_new_node();
-    new_node->data = strdup("Полторашка");
-    new_node->parent = akinator_knowledge_base->root;
-    akinator_knowledge_base->root->left = new_node;
-    ++(akinator_knowledge_base->size);
+    if (akinator_knowledge_base == nullptr) {
+        ERROR_MSG("Can't initialize knowledge base\n");
+        destruct_logger();
+        return 1;
+    }
 
-    new_node = alloc_new_node();
-    new_node->data = strdup("препает матан");
-    new_node->parent = akinator_knowledge_base->root;
-    akinator_knowledge_base->root->right = new_node;
-    ++(akinator_knowledge_base->size);
-
-    new_node = alloc_new_node();
-    new_node->data = strdup("Петрович");
-    new_node->parent = akinator_knowledge_base->root->right;
-    akinator_knowledge_base->root->right->left = new_node;
-    ++(akinator_knowledge_base->size);
-
-    new_node = alloc_new_node();
-    new_node->data = strdup("Паша Т");
-    new_node->parent = akinator_knowledge_base->root->right;
-    akinator_knowledge_base->root->right->right= new_node;
-    ++(akinator_knowledge_base->size);
-
-    dump(akinator_knowledge_base, "Dump after generate predefined tree");
+    dump(akinator_knowledge_base, "Dump after loading knowledge base");
     fprintf(get_log_file(), "<hr>");
+
+    TERMINAL_CLEAR_SCREEN();
 
     do {
         guess(akinator_knowledge_base);
@@ -93,9 +84,19 @@ int main() {
     }
 
     if (is_user_want_continue("\nСохранить базу данных? (Y/n) ") == 1) {
-        save_to_file(stdout, akinator_knowledge_base);
+        FILE *save_file = fopen(db_path, "w");
+        if (!save_file) {
+            ERROR_MSG("Не получилось открыть базу данных для записи");
+            destroy_genie_face(akinator_knowledge_base);
+            destruct_logger();
+            TERMINAL_EXIT_ALT_SCREEN();
+            return 1;
+        }
+        save_to_file(save_file, akinator_knowledge_base);
+        fclose(save_file);
     }
 
     destroy_genie_face(akinator_knowledge_base);
     destruct_logger();
+    TERMINAL_EXIT_ALT_SCREEN();
 }
